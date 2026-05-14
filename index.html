@@ -201,7 +201,10 @@
         <div class="modal-label">Detalles</div>
         <div class="modal-value" id="modal-event-details"></div>
       </div>
-      <button class="modal-close" onclick="closeEventModal()">Cerrar</button>
+      <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+        <button class="modal-close" onclick="closeEventModal()" style="background: var(--n100); color: var(--tx); border: 1px solid var(--bd); flex: 1;">Cerrar</button>
+        <button id="btn-delete-event" class="modal-close" onclick="deleteEventReservation()" style="background: var(--r600); color: white; flex: 1; display: none;">Eliminar</button>
+      </div>
     </div>
   </div>
 
@@ -235,6 +238,7 @@ let state = {
   currentDate: new Date(),
   view: 'month',
   selectedReservation: null,
+  currentEventInModal: null,
 };
 
 // HELPERS
@@ -494,6 +498,8 @@ function updateEndTimes() {
 }
 
 function showEventModal(event, dateStr) {
+  state.currentEventInModal = event;
+
   document.getElementById('modal-event-name').textContent = event.name;
   document.getElementById('modal-event-time').textContent = `${event.startTime} - ${event.endTime}`;
 
@@ -510,11 +516,30 @@ function showEventModal(event, dateStr) {
     document.getElementById('modal-details-group').style.display = 'none';
   }
 
+  // Mostrar botón de eliminar solo en modo admin
+  const btnDelete = document.getElementById('btn-delete-event');
+  btnDelete.style.display = state.mode === 'admin' ? 'block' : 'none';
+
   document.getElementById('event-modal').classList.add('show');
 }
 
 function closeEventModal() {
   document.getElementById('event-modal').classList.remove('show');
+  state.currentEventInModal = null;
+}
+
+function deleteEventReservation() {
+  if (!state.currentEventInModal) return;
+
+  if (!confirm('¿Eliminar esta reserva?')) return;
+
+  const reservations = getReservations(state.currentRoom);
+  const filtered = reservations.filter(r => r.id !== state.currentEventInModal.id);
+  setReservations(state.currentRoom, filtered);
+
+  closeEventModal();
+  renderCalendar();
+  alert('Reserva eliminada');
 }
 
 function submitBooking(event) {
