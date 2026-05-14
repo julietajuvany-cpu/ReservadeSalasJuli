@@ -343,7 +343,7 @@ function renderWeek() {
       const startMinutes = startH * 60 + startM - 8 * 60;
       const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
 
-      html += `<div class="event-block reserved" style="top:${startMinutes}px; height:${durationMinutes}px;" onclick="showEventModal({name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">
+      html += `<div class="event-block reserved" style="top:${startMinutes}px; height:${durationMinutes}px;" onclick="showEventModal({id:'${r.id}',name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">
         <div class="event-name">${r.name}</div>
         <div class="event-time">${r.startTime} - ${r.endTime}</div>
         <div class="event-requester">${r.requester || 'N/A'}</div>
@@ -382,7 +382,7 @@ function renderDay() {
     const top = (startH - 8) * 60 + startM;
     const height = (endH * 60 + endM) - (startH * 60 + startM);
 
-    html += `<div class="event-block reserved" style="top: ${top}px; left: 8px; right: 8px; height: ${height}px;" onclick="showEventModal({name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">
+    html += `<div class="event-block reserved" style="top: ${top}px; left: 8px; right: 8px; height: ${height}px;" onclick="showEventModal({id:'${r.id}',name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">
       <div class="event-name">${r.name}</div>
       <div class="event-time">${r.startTime} - ${r.endTime}</div>
       <div class="event-requester">${r.requester || 'N/A'}</div>
@@ -421,7 +421,7 @@ function renderMonth() {
     html += `<div style="background: ${isToday ? 'var(--h500)' : 'var(--surf)'}; padding: 8px; min-height: 80px; color: ${isToday ? 'white' : 'var(--tx)'}; opacity: ${isOtherMonth ? '0.5' : '1'}; border-right: 1px solid var(--bd); border-bottom: 1px solid var(--bd); overflow: hidden;">
       <div style="font-weight: 600; margin-bottom: 4px;">${d.getDate()}</div>
       <div style="font-size: 10px;">
-        ${reservations.slice(0, 2).map(r => `<div style="background: var(--r600); color: white; padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" onclick="showEventModal({name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">${r.startTime} ${r.name}</div>`).join('')}
+        ${reservations.slice(0, 2).map(r => `<div style="background: var(--r600); color: white; padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" onclick="showEventModal({id:'${r.id}',name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">${r.startTime} ${r.name}</div>`).join('')}
         ${reservations.length > 2 ? `<div style="font-size: 9px; color: var(--tx2);">+${reservations.length - 2}</div>` : ''}
       </div>
     </div>`;
