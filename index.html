@@ -204,7 +204,18 @@
       <button class="modal-close" onclick="closeEventModal()">Cerrar</button>
     </div>
   </div>
-</div>
+
+  <!-- MODAL para ver detalles de reserva -->
+  <div id="modal-details" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--surf); border-radius: 12px; padding: 20px; max-width: 400px; width: 90%;">
+      <h2 id="modal-title" style="margin-bottom: 15px; font-size: 16px; font-weight: 700;"></h2>
+      <div id="modal-content" style="margin-bottom: 15px; font-size: 13px; line-height: 1.6;"></div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button onclick="closeModal()" class="btn btn-secondary">Cerrar</button>
+        <button onclick="deleteReservation()" class="btn" style="background: var(--r600); color: white;">Eliminar</button>
+      </div>
+    </div>
+  </div>
 
 <script>
 // CONFIG
@@ -223,6 +234,7 @@ let state = {
   currentRoom: 'room-a',
   currentDate: new Date(),
   view: 'month',
+  selectedReservation: null,
 };
 
 // HELPERS
@@ -540,6 +552,44 @@ function submitBooking(event) {
   event.target.reset();
   renderCalendar();
   alert('Reserva guardada');
+}
+
+function showReservationDetails(reservation) {
+  if (state.mode === 'view') return;
+
+  state.selectedReservation = reservation;
+  const modal = document.getElementById('modal-details');
+  const title = document.getElementById('modal-title');
+  const content = document.getElementById('modal-content');
+
+  title.textContent = reservation.name;
+  content.innerHTML = `
+    <div><strong>Fecha:</strong> ${reservation.date}</div>
+    <div><strong>Hora:</strong> ${reservation.startTime} - ${reservation.endTime}</div>
+    <div><strong>Quién reserva:</strong> ${reservation.requester}</div>
+    ${reservation.notes ? `<div><strong>Detalles:</strong> ${reservation.notes}</div>` : ''}
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-details').style.display = 'none';
+  state.selectedReservation = null;
+}
+
+function deleteReservation() {
+  if (!state.selectedReservation) return;
+
+  if (!confirm('¿Eliminar esta reserva?')) return;
+
+  const reservations = getReservations(state.currentRoom);
+  const filtered = reservations.filter(r => r.id !== state.selectedReservation.id);
+  setReservations(state.currentRoom, filtered);
+
+  closeModal();
+  renderCalendar();
+  alert('Reserva eliminada');
 }
 
 // INIT DATA
