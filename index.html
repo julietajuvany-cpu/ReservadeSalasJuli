@@ -529,12 +529,26 @@ function closeEventModal() {
 }
 
 function deleteEventReservation() {
-  if (!state.currentEventInModal) return;
+  console.log('deleteEventReservation called');
+  console.log('state.currentEventInModal:', state.currentEventInModal);
+  console.log('state.currentRoom:', state.currentRoom);
 
-  if (!confirm('¿Eliminar esta reserva?')) return;
+  if (!state.currentEventInModal) {
+    console.log('No event in modal');
+    return;
+  }
+
+  if (!confirm('¿Eliminar esta reserva?')) {
+    console.log('User cancelled');
+    return;
+  }
 
   const reservations = getReservations(state.currentRoom);
+  console.log('Current reservations:', reservations);
+
   const filtered = reservations.filter(r => r.id !== state.currentEventInModal.id);
+  console.log('Filtered reservations:', filtered);
+
   setReservations(state.currentRoom, filtered);
 
   closeEventModal();
