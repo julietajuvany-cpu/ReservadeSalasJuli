@@ -756,14 +756,14 @@ function init() {
     document.getElementById('booking-date').value = today;
   }
 
-  initSampleData();
+  await initSampleData();
   document.getElementById('booking-date').value = dateToString(new Date());
   await renderCalendar();
 
   // Recargar cada 5 segundos para sincronizar con otros usuarios
-  setInterval(() => {
+  setInterval(async () => {
     cachedReservations = {};
-    renderCalendar();
+    await renderCalendar().catch(err => console.error('Error rendering:', err));
   }, 5000);
 }
 
