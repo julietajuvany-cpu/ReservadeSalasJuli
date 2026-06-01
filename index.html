@@ -731,7 +731,7 @@ async function initSampleData() {
 }
 
 // INIT
-function init() {
+async function init() {
   const params = getUrlParams();
   state.mode = params.mode;
   state.currentRoom = getRoomId(params.sala);
