@@ -740,6 +740,7 @@ async function init() {
   const params = getUrlParams();
   state.mode = params.mode;
   state.currentRoom = getRoomId(params.sala);
+  console.log('MODE:', state.mode, 'ROOM:', state.currentRoom);
 
   const app = document.getElementById('app');
   const roomSelectorWrapper = document.getElementById('room-selector-wrapper');
