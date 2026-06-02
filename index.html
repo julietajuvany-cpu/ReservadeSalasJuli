@@ -236,7 +236,7 @@ const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 // SUPABASE CONFIG
 const SUPABASE_URL = 'https://qiwmuqeunuumtdzqryui.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpd211cWV1bnV1bXRkenFyeXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMzIxOTksImV4cCI6MjA5NTkwODE5OX0.b064_zxooRgqc_jllML8VDfeun22tYRDr0fJZn4ZpNU';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase;
 
 let state = {
   mode: 'view',
@@ -732,6 +732,11 @@ async function initSampleData() {
 
 // INIT
 async function init() {
+  // Inicializar Supabase
+  if (!supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
   const params = getUrlParams();
   state.mode = params.mode;
   state.currentRoom = getRoomId(params.sala);
