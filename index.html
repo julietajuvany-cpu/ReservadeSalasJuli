@@ -340,7 +340,7 @@ async function addReservation(reservation) {
 
 async function deleteReservation(reservationId, roomId) {
   try {
-    const { error } = await supabase
+    const { error } = await window.supabaseClient
       .from('reservations')
       .delete()
       .eq('id', reservationId);
@@ -720,7 +720,7 @@ async function initSampleData() {
 
   // Insertar datos de ejemplo en Supabase
   for (const sample of samples) {
-    await supabase
+    await window.supabaseClient
       .from('reservations')
       .insert([sample])
       .catch(err => console.error('Error inserting sample:', err));
