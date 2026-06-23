@@ -160,6 +160,30 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label">Recurrencia</label>
+          <select id="booking-recurrence" class="form-input" onchange="toggleRecurrenceFields()">
+            <option value="none">Una sola vez</option>
+            <option value="weekly">Cada semana (mismo día)</option>
+            <option value="monthly">Cada mes (mismo día)</option>
+          </select>
+        </div>
+
+        <div id="recurrence-fields" style="display: none;">
+          <div class="form-group">
+            <label class="form-label">Repetir hasta</label>
+            <select id="booking-recurrence-end" class="form-input" onchange="toggleRecurrenceDateField()">
+              <option value="forever">Siempre</option>
+              <option value="date">Fecha específica</option>
+            </select>
+          </div>
+
+          <div id="recurrence-end-date-field" style="display: none;" class="form-group">
+            <label class="form-label">Fecha final</label>
+            <input type="date" id="booking-recurrence-end-date" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
           <label class="form-label">Nombre del evento *</label>
           <input type="text" id="booking-name" class="form-input" required>
         </div>
@@ -308,20 +332,122 @@ async function setReservations(roomId, reservations) {
   }
 }
 
+async function expandRecurringEvents(roomId, dateRange) {
+  const baseReservations = await getReservations(roomId);
+  const expanded = [];
+
+  for (const r of baseReservations) {
+    if (!r.recurrence_type || r.recurrence_type === '') {
+      // Evento único
+      expanded.push(r);
+    } else {
+      // Expandir evento recurrente
+      const instances = generateRecurringInstances(r, dateRange);
+      expanded.push(...instances);
+    }
+  }
+
+  return expanded;
+}
+
+function generateRecurringInstances(baseEvent, dateRange) {
+  const instances = [];
+  const { start, end } = dateRange;
+
+  // Helper para parsear fechas sin problemas de zona horaria
+  function parseDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function dateToString(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  if (baseEvent.recurrence_type === 'weekly') {
+    const targetDow = baseEvent.recurrence_day_of_week;
+    const baseDate = parseDate(baseEvent.date);
+    const endDate = baseEvent.recurrence_end_date && baseEvent.recurrence_end_date !== ''
+      ? parseDate(baseEvent.recurrence_end_date)
+      : new Date('2099-12-31');
+
+    let current = new Date(baseDate);
+
+    // Ajustar al primer día que coincida con el día de la semana
+    while (current.getDay() !== targetDow) {
+      current.setDate(current.getDate() + 1);
+    }
+
+    // Generar instancias mientras esté en rango y antes de fecha final
+    while (current <= end && current <= endDate) {
+      if (current >= start) {
+        const dateStr = dateToString(current);
+        instances.push({
+          ...baseEvent,
+          id: `${baseEvent.id}-${dateStr}`,
+          date: dateStr
+        });
+      }
+      current.setDate(current.getDate() + 7);
+    }
+  }
+
+  if (baseEvent.recurrence_type === 'monthly') {
+    const targetDom = baseEvent.recurrence_day_of_month;
+    const baseDate = parseDate(baseEvent.date);
+    const endDate = baseEvent.recurrence_end_date && baseEvent.recurrence_end_date !== ''
+      ? parseDate(baseEvent.recurrence_end_date)
+      : new Date('2099-12-31');
+
+    let current = new Date(baseDate.getFullYear(), baseDate.getMonth(), targetDom);
+
+    while (current <= end && current <= endDate) {
+      const dateStr = dateToString(current);
+      if (current >= start) {
+        instances.push({
+          ...baseEvent,
+          id: `${baseEvent.id}-${dateStr}`,
+          date: dateStr
+        });
+      }
+      current.setMonth(current.getMonth() + 1);
+    }
+  }
+
+  return instances;
+}
+
 async function addReservation(reservation) {
   try {
+    const insertData = {
+      id: reservation.id,
+      room_id: reservation.roomId || state.currentRoom,
+      date: reservation.date,
+      start_time: reservation.startTime,
+      end_time: reservation.endTime,
+      name: reservation.name,
+      requester: reservation.requester,
+      notes: reservation.notes || ''
+    };
+
+    // Agregar campos de recurrencia solo si tienen valores
+    if (reservation.recurrenceType) {
+      insertData.recurrence_type = reservation.recurrenceType;
+    }
+    if (reservation.recurrenceEndDate) {
+      insertData.recurrence_end_date = reservation.recurrenceEndDate;
+    }
+    if (reservation.dayOfWeek !== null && reservation.dayOfWeek !== undefined) {
+      insertData.recurrence_day_of_week = reservation.dayOfWeek;
+    }
+    if (reservation.dayOfMonth !== null && reservation.dayOfMonth !== undefined) {
+      insertData.recurrence_day_of_month = reservation.dayOfMonth;
+    }
+
     const { data, error } = await window.supabaseClient
       .from('reservations')
-      .insert([{
-        id: reservation.id,
-        room_id: reservation.roomId || state.currentRoom,
-        date: reservation.date,
-        start_time: reservation.startTime,
-        end_time: reservation.endTime,
-        name: reservation.name,
-        requester: reservation.requester,
-        notes: reservation.notes || ''
-      }]);
+      .insert([insertData]);
 
     if (error) {
       console.error('Error adding reservation:', error);
@@ -387,6 +513,10 @@ async function renderWeek() {
   }
   html += '</div>';
 
+  // Get all reservations for this week (expanding recurring events)
+  const dateRange = { start, end };
+  const allReservations = await expandRecurringEvents(state.currentRoom, dateRange);
+
   // Day columns
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
@@ -406,7 +536,7 @@ async function renderWeek() {
     }
 
     // Get reservations for this day
-    const reservations = (await getReservations(state.currentRoom)).filter(r => r.date === dateStr);
+    const reservations = allReservations.filter(r => r.date === dateStr);
 
     reservations.forEach(r => {
       const [startH, startM] = r.start_time.split(':').map(Number);
@@ -430,7 +560,9 @@ async function renderWeek() {
 
 async function renderDay() {
   const dateStr = dateToString(state.currentDate);
-  const reservations = (await getReservations(state.currentRoom)).filter(r => r.date === dateStr);
+  const dateRange = { start: state.currentDate, end: state.currentDate };
+  const allReservations = await expandRecurringEvents(state.currentRoom, dateRange);
+  const reservations = allReservations.filter(r => r.date === dateStr);
 
   let html = '<div style="display: flex; height: 100%; overflow: hidden;">';
 
@@ -479,8 +611,9 @@ async function renderMonth() {
     html += `<div style="background: var(--n50); padding: 10px; text-align: center; font-weight: 600; font-size: 11px; color: var(--tx2); border-bottom: 1px solid var(--bd);">${day}</div>`;
   });
 
-  // Get all reservations once
-  const allReservations = await getReservations(state.currentRoom);
+  // Get all reservations (expanding recurring events)
+  const dateRange = { start: startDate, end: lastDay };
+  const allReservations = await expandRecurringEvents(state.currentRoom, dateRange);
 
   // Days
   const today = dateToString(new Date());
@@ -572,6 +705,18 @@ function updateEndTimes() {
   }
 }
 
+function toggleRecurrenceFields() {
+  const recurrence = document.getElementById('booking-recurrence').value;
+  const recurrenceFields = document.getElementById('recurrence-fields');
+  recurrenceFields.style.display = recurrence === 'none' ? 'none' : 'block';
+}
+
+function toggleRecurrenceDateField() {
+  const endType = document.getElementById('booking-recurrence-end').value;
+  const dateField = document.getElementById('recurrence-end-date-field');
+  dateField.style.display = endType === 'forever' ? 'none' : 'block';
+}
+
 function showEventModal(event, dateStr) {
   state.currentEventInModal = event;
 
@@ -641,6 +786,11 @@ async function submitBooking(event) {
     return;
   }
 
+  const recurrence = document.getElementById('booking-recurrence').value;
+  const recurrenceEnd = document.getElementById('booking-recurrence-end').value;
+  const recurrenceEndDate = document.getElementById('booking-recurrence-end-date').value;
+  const dateObj = new Date(date);
+
   const success = await addReservation({
     id: generateId(),
     date,
@@ -649,11 +799,17 @@ async function submitBooking(event) {
     name,
     requester: requester || 'N/A',
     notes: details,
-    roomId: state.currentRoom
+    roomId: state.currentRoom,
+    recurrenceType: recurrence === 'none' ? null : recurrence,
+    recurrenceEndDate: recurrenceEnd === 'forever' ? null : recurrenceEndDate,
+    dayOfWeek: recurrence === 'weekly' ? dateObj.getDay() : null,
+    dayOfMonth: recurrence === 'monthly' ? dateObj.getDate() : null
   });
 
   if (success) {
     event.target.reset();
+    document.getElementById('booking-recurrence').value = 'none';
+    document.getElementById('recurrence-fields').style.display = 'none';
     await renderCalendar();
     alert('Reserva guardada');
   } else {
