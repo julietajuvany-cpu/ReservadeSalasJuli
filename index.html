@@ -334,6 +334,7 @@ async function setReservations(roomId, reservations) {
 
 async function expandRecurringEvents(roomId, dateRange) {
   const baseReservations = await getReservations(roomId);
+  const exceptions = await getExceptions();
   const expanded = [];
 
   for (const r of baseReservations) {
@@ -342,7 +343,7 @@ async function expandRecurringEvents(roomId, dateRange) {
       expanded.push(r);
     } else {
       // Expandir evento recurrente
-      const instances = generateRecurringInstances(r, dateRange);
+      const instances = generateRecurringInstances(r, dateRange, exceptions);
       expanded.push(...instances);
     }
   }
@@ -350,7 +351,53 @@ async function expandRecurringEvents(roomId, dateRange) {
   return expanded;
 }
 
-function generateRecurringInstances(baseEvent, dateRange) {
+let cachedExceptions = {};
+
+async function getExceptions() {
+  try {
+    if (!cachedExceptions.loaded) {
+      const { data, error } = await window.supabaseClient
+        .from('reservation_exceptions')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching exceptions:', error);
+        return [];
+      }
+
+      cachedExceptions.data = data || [];
+      cachedExceptions.loaded = true;
+    }
+    return cachedExceptions.data || [];
+  } catch (e) {
+    console.error('Error:', e);
+    return [];
+  }
+}
+
+async function addDeleteException(parentId, date) {
+  try {
+    const { error } = await window.supabaseClient
+      .from('reservation_exceptions')
+      .insert([{
+        parent_id: parentId,
+        exception_date: date
+      }]);
+
+    if (error) {
+      console.error('Error adding exception:', error);
+      return false;
+    }
+
+    cachedExceptions.loaded = false;
+    return true;
+  } catch (e) {
+    console.error('Error:', e);
+    return false;
+  }
+}
+
+function generateRecurringInstances(baseEvent, dateRange, exceptions = []) {
   const instances = [];
   const { start, end } = dateRange;
 
@@ -383,11 +430,16 @@ function generateRecurringInstances(baseEvent, dateRange) {
     while (current <= end && current <= endDate) {
       if (current >= start) {
         const dateStr = dateToString(current);
-        instances.push({
-          ...baseEvent,
-          id: `${baseEvent.id}-${dateStr}`,
-          date: dateStr
-        });
+        const isException = exceptions.some(e => e.parent_id === baseEvent.id && e.exception_date === dateStr);
+
+        if (!isException) {
+          instances.push({
+            ...baseEvent,
+            id: `${baseEvent.id}-${dateStr}`,
+            date: dateStr,
+            recurrence_parent_id: baseEvent.id
+          });
+        }
       }
       current.setDate(current.getDate() + 7);
     }
@@ -404,11 +456,14 @@ function generateRecurringInstances(baseEvent, dateRange) {
 
     while (current <= end && current <= endDate) {
       const dateStr = dateToString(current);
-      if (current >= start) {
+      const isException = exceptions.some(e => e.parent_id === baseEvent.id && e.exception_date === dateStr);
+
+      if (current >= start && !isException) {
         instances.push({
           ...baseEvent,
           id: `${baseEvent.id}-${dateStr}`,
-          date: dateStr
+          date: dateStr,
+          recurrence_parent_id: baseEvent.id
         });
       }
       current.setMonth(current.getMonth() + 1);
@@ -753,16 +808,54 @@ function closeEventModal() {
 async function deleteEventReservation() {
   if (!state.currentEventInModal) return;
 
-  if (!confirm('¿Eliminar esta reserva?')) return;
+  const event = state.currentEventInModal;
+  const isRecurring = event.recurrence_parent_id;
 
-  const success = await deleteReservation(state.currentEventInModal.id, state.currentRoom);
+  if (!isRecurring) {
+    // Evento único - eliminación simple
+    if (!confirm('¿Eliminar esta reserva?')) return;
 
-  if (success) {
-    closeEventModal();
-    await renderCalendar();
-    alert('Reserva eliminada');
+    const success = await deleteReservation(event.id, state.currentRoom);
+    if (success) {
+      closeEventModal();
+      await renderCalendar();
+      alert('Reserva eliminada');
+    } else {
+      alert('Error al eliminar la reserva');
+    }
   } else {
-    alert('Error al eliminar la reserva');
+    // Evento recurrente - mostrar opciones
+    const choice = confirm(
+      '¿Qué deseas eliminar?\n\n' +
+      'OK = Solo esta fecha\n' +
+      'Cancelar = Toda la serie'
+    );
+
+    if (choice) {
+      // Eliminar solo esta instancia
+      const success = await addDeleteException(event.recurrence_parent_id, event.date);
+      if (success) {
+        closeEventModal();
+        cachedExceptions.loaded = false;
+        await renderCalendar();
+        alert('Instancia eliminada');
+      } else {
+        alert('Error al eliminar la instancia');
+      }
+    } else {
+      // Eliminar toda la serie
+      if (!confirm('¿Estás seguro? Se eliminará TODA la serie.')) return;
+
+      const success = await deleteReservation(event.recurrence_parent_id, state.currentRoom);
+      if (success) {
+        closeEventModal();
+        cachedExceptions.loaded = false;
+        await renderCalendar();
+        alert('Serie eliminada completamente');
+      } else {
+        alert('Error al eliminar la serie');
+      }
+    }
   }
 }
 
