@@ -789,7 +789,10 @@ async function submitBooking(event) {
   const recurrence = document.getElementById('booking-recurrence').value;
   const recurrenceEnd = document.getElementById('booking-recurrence-end').value;
   const recurrenceEndDate = document.getElementById('booking-recurrence-end-date').value;
-  const dateObj = new Date(date);
+
+  // Parsear fecha sin problemas de zona horaria
+  const [y, m, d] = date.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
 
   const success = await addReservation({
     id: generateId(),
