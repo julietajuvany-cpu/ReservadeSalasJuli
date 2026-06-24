@@ -787,7 +787,7 @@ function toggleRecurrenceDateField() {
 }
 
 function showEventModal(event, dateStr) {
-  state.currentEventInModal = event;
+  state.currentEventInModal = { ...event, date: dateStr };
 
   document.getElementById('modal-event-name').textContent = event.name;
   document.getElementById('modal-event-time').textContent = `${event.startTime} - ${event.endTime}`;
