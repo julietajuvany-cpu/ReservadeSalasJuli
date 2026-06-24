@@ -825,13 +825,14 @@ async function deleteEventReservation() {
     }
   } else {
     // Evento recurrente - mostrar opciones
-    const choice = confirm(
-      '¿Qué deseas eliminar?\n\n' +
-      'OK = Solo esta fecha\n' +
-      'Cancelar = Toda la serie'
+    const onlyThisInstance = confirm(
+      'Esta es una reserva recurrente.\n\n' +
+      '¿Eliminar SOLO esta fecha?\n\n' +
+      'Aceptar = Solo esta fecha\n' +
+      'Cancelar = Eliminar toda la serie'
     );
 
-    if (choice) {
+    if (onlyThisInstance) {
       // Eliminar solo esta instancia
       const success = await addDeleteException(event.recurrence_parent_id, event.date);
       if (success) {
@@ -843,8 +844,8 @@ async function deleteEventReservation() {
         alert('Error al eliminar la instancia');
       }
     } else {
-      // Eliminar toda la serie
-      if (!confirm('¿Estás seguro? Se eliminará TODA la serie.')) return;
+      // Confirmar eliminación de toda la serie
+      if (!confirm('¿ELIMINAR TODA LA SERIE? Esta acción no se puede deshacer.')) return;
 
       const success = await deleteReservation(event.recurrence_parent_id, state.currentRoom);
       if (success) {
