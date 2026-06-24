@@ -369,6 +369,7 @@ let cachedExceptions = {};
 async function getExceptions() {
   try {
     if (!cachedExceptions.loaded) {
+      console.log('[getExceptions] Reloading from DB...');
       const { data, error } = await window.supabaseClient
         .from('reservation_exceptions')
         .select('*');
@@ -378,8 +379,11 @@ async function getExceptions() {
         return [];
       }
 
+      console.log('[getExceptions] Loaded exceptions:', data);
       cachedExceptions.data = data || [];
       cachedExceptions.loaded = true;
+    } else {
+      console.log('[getExceptions] Using cached:', cachedExceptions.data);
     }
     return cachedExceptions.data || [];
   } catch (e) {
