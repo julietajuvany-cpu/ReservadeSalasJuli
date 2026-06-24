@@ -369,7 +369,6 @@ let cachedExceptions = { loaded: false, data: [] };
 async function getExceptions() {
   try {
     if (!cachedExceptions.loaded) {
-      console.log('[getExceptions] Reloading from DB...');
       const { data, error } = await window.supabaseClient
         .from('reservation_exceptions')
         .select('*');
@@ -380,10 +379,7 @@ async function getExceptions() {
         return [];
       }
 
-      console.log('[getExceptions] Loaded exceptions:', data);
       cachedExceptions = { loaded: true, data: data || [] };
-    } else {
-      console.log('[getExceptions] Using cached:', cachedExceptions.data);
     }
     return cachedExceptions.data || [];
   } catch (e) {
@@ -395,17 +391,13 @@ async function getExceptions() {
 
 async function addDeleteException(parentId, date) {
   try {
-    console.log('[addDeleteException] Inserting:', { parent_id: parentId, exception_date: date, exception_type: 'deleted' });
-
-    const { data, error } = await window.supabaseClient
+    const { error } = await window.supabaseClient
       .from('reservation_exceptions')
       .insert([{
         parent_id: parentId,
         exception_date: date,
         exception_type: 'deleted'
       }]);
-
-    console.log('[addDeleteException] Response:', { data, error });
 
     if (error) {
       console.error('Error adding exception:', error);
@@ -454,9 +446,6 @@ function generateRecurringInstances(baseEvent, dateRange, exceptions = []) {
       if (current >= start) {
         const dateStr = dateToString(current);
         const isException = exceptions.some(e => e.parent_id === baseEvent.id && e.exception_date === dateStr);
-
-        console.log(`[weekly] Checking ${dateStr}: isException=${isException}, exceptions for this parent:`,
-          exceptions.filter(e => e.parent_id === baseEvent.id));
 
         if (!isException) {
           instances.push({
@@ -863,12 +852,6 @@ async function deleteRecurrenceInstance() {
   if (!state.currentEventInModal) return;
 
   const event = state.currentEventInModal;
-  console.log('Deleting instance:', {
-    parent_id: event.recurrence_parent_id,
-    date: event.date,
-    event: event
-  });
-
   const success = await addDeleteException(event.recurrence_parent_id, event.date);
 
   if (success) {
