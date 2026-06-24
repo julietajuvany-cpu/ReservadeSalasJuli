@@ -446,6 +446,9 @@ function generateRecurringInstances(baseEvent, dateRange, exceptions = []) {
         const dateStr = dateToString(current);
         const isException = exceptions.some(e => e.parent_id === baseEvent.id && e.exception_date === dateStr);
 
+        console.log(`[weekly] Checking ${dateStr}: isException=${isException}, exceptions for this parent:`,
+          exceptions.filter(e => e.parent_id === baseEvent.id));
+
         if (!isException) {
           instances.push({
             ...baseEvent,
@@ -851,6 +854,12 @@ async function deleteRecurrenceInstance() {
   if (!state.currentEventInModal) return;
 
   const event = state.currentEventInModal;
+  console.log('Deleting instance:', {
+    parent_id: event.recurrence_parent_id,
+    date: event.date,
+    event: event
+  });
+
   const success = await addDeleteException(event.recurrence_parent_id, event.date);
 
   if (success) {
