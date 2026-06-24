@@ -245,6 +245,19 @@
     </div>
   </div>
 
+  <!-- MODAL para confirmar eliminación de recurrencias -->
+  <div id="modal-delete-recurrence" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--surf); border-radius: 12px; padding: 20px; max-width: 450px; width: 90%;">
+      <h2 style="margin-bottom: 15px; font-size: 16px; font-weight: 700; color: var(--tx);">¿Cómo deseas eliminar?</h2>
+      <p style="margin-bottom: 20px; font-size: 13px; color: var(--tx2); line-height: 1.6;">Esta es una reserva recurrente. ¿Qué deseas eliminar?</p>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button onclick="closeDeleteRecurrenceModal()" class="btn btn-secondary">Cancelar</button>
+        <button onclick="deleteRecurrenceInstance()" class="btn" style="background: var(--n200); color: var(--tx);">Solo esta fecha</button>
+        <button onclick="deleteRecurrenceSeries()" class="btn" style="background: var(--r600); color: white;">Toda la serie</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 // CONFIG
 const ROOMS = [
@@ -824,39 +837,48 @@ async function deleteEventReservation() {
       alert('Error al eliminar la reserva');
     }
   } else {
-    // Evento recurrente - mostrar opciones
-    const onlyThisInstance = confirm(
-      'Esta es una reserva recurrente.\n\n' +
-      '¿Eliminar SOLO esta fecha?\n\n' +
-      'Aceptar = Solo esta fecha\n' +
-      'Cancelar = Eliminar toda la serie'
-    );
+    // Evento recurrente - mostrar modal con opciones
+    document.getElementById('modal-delete-recurrence').style.display = 'flex';
+  }
+}
 
-    if (onlyThisInstance) {
-      // Eliminar solo esta instancia
-      const success = await addDeleteException(event.recurrence_parent_id, event.date);
-      if (success) {
-        closeEventModal();
-        cachedExceptions.loaded = false;
-        await renderCalendar();
-        alert('Instancia eliminada');
-      } else {
-        alert('Error al eliminar la instancia');
-      }
-    } else {
-      // Confirmar eliminación de toda la serie
-      if (!confirm('¿ELIMINAR TODA LA SERIE? Esta acción no se puede deshacer.')) return;
+function closeDeleteRecurrenceModal() {
+  document.getElementById('modal-delete-recurrence').style.display = 'none';
+}
 
-      const success = await deleteReservation(event.recurrence_parent_id, state.currentRoom);
-      if (success) {
-        closeEventModal();
-        cachedExceptions.loaded = false;
-        await renderCalendar();
-        alert('Serie eliminada completamente');
-      } else {
-        alert('Error al eliminar la serie');
-      }
-    }
+async function deleteRecurrenceInstance() {
+  if (!state.currentEventInModal) return;
+
+  const event = state.currentEventInModal;
+  const success = await addDeleteException(event.recurrence_parent_id, event.date);
+
+  if (success) {
+    closeDeleteRecurrenceModal();
+    closeEventModal();
+    cachedExceptions.loaded = false;
+    await renderCalendar();
+    alert('Instancia eliminada');
+  } else {
+    alert('Error al eliminar la instancia');
+  }
+}
+
+async function deleteRecurrenceSeries() {
+  if (!state.currentEventInModal) return;
+
+  if (!confirm('¿ELIMINAR TODA LA SERIE? Esta acción no se puede deshacer.')) return;
+
+  const event = state.currentEventInModal;
+  const success = await deleteReservation(event.recurrence_parent_id, state.currentRoom);
+
+  if (success) {
+    closeDeleteRecurrenceModal();
+    closeEventModal();
+    cachedExceptions.loaded = false;
+    await renderCalendar();
+    alert('Serie eliminada completamente');
+  } else {
+    alert('Error al eliminar la serie');
   }
 }
 
