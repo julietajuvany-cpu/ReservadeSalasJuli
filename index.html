@@ -395,13 +395,17 @@ async function getExceptions() {
 
 async function addDeleteException(parentId, date) {
   try {
-    const { error } = await window.supabaseClient
+    console.log('[addDeleteException] Inserting:', { parent_id: parentId, exception_date: date, exception_type: 'deleted' });
+
+    const { data, error } = await window.supabaseClient
       .from('reservation_exceptions')
       .insert([{
         parent_id: parentId,
         exception_date: date,
         exception_type: 'deleted'
       }]);
+
+    console.log('[addDeleteException] Response:', { data, error });
 
     if (error) {
       console.error('Error adding exception:', error);
