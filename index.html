@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -117,6 +118,8 @@
           <option value="room-a">Sala 1 - 3er Piso</option>
           <option value="room-b">Sala 2 - 3er Piso</option>
           <option value="room-c">Sala 4to Piso</option>
+          <option value="room-d">Sala de reuniones - Grand Bourg</option>
+          <option value="room-e">Sala de capacitaciones - Grand Bourg</option>
         </select>
       </div>
     </div>
@@ -164,6 +167,7 @@
           <select id="booking-recurrence" class="form-input" onchange="toggleRecurrenceFields()">
             <option value="none">Una sola vez</option>
             <option value="weekly">Cada semana (mismo día)</option>
+            <option value="biweekly">Cada 15 días</option>
             <option value="monthly">Cada mes (mismo día)</option>
           </select>
         </div>
@@ -199,7 +203,7 @@
         </div>
 
         <div class="form-buttons">
-          <button type="reset" class="btn btn-secondary">Limpiar</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Limpiar</button>
           <button type="submit" class="btn btn-primary">Reservar</button>
         </div>
       </form>
@@ -228,6 +232,7 @@
       </div>
       <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
         <button class="modal-close" onclick="closeEventModal()" style="background: var(--n100); color: var(--tx); border: 1px solid var(--bd); flex: 1;">Cerrar</button>
+        <button id="btn-edit-event" class="modal-close" onclick="editEventReservation()" style="background: var(--h500); color: white; flex: 1; display: none;">Editar</button>
         <button id="btn-delete-event" class="modal-close" onclick="deleteEventReservation()" style="background: var(--r600); color: white; flex: 1; display: none;">Eliminar</button>
       </div>
     </div>
@@ -264,6 +269,8 @@ const ROOMS = [
   { id: 'room-a', name: 'Sala 1 - 3er Piso', color: '#496be3' },
   { id: 'room-b', name: 'Sala 2 - 3er Piso', color: '#28c040' },
   { id: 'room-c', name: 'Sala 4to Piso', color: '#d42e2e' },
+  { id: 'room-d', name: 'Sala de reuniones - Grand Bourg', color: '#f5a623' },
+  { id: 'room-e', name: 'Sala de capacitaciones - Grand Bourg', color: '#9b59b6' },
 ];
 
 const STORAGE_KEY = 'rooms_reservations';
@@ -282,6 +289,7 @@ let state = {
   view: 'month',
   selectedReservation: null,
   currentEventInModal: null,
+  editingReservationId: null,
 };
 
 // HELPERS
@@ -294,7 +302,7 @@ function getUrlParams() {
 }
 
 function getRoomId(salaLetter) {
-  const map = { 'A': 'room-a', 'B': 'room-b', 'C': 'room-c' };
+  const map = { 'A': 'room-a', 'B': 'room-b', 'C': 'room-c', 'D': 'room-d', 'E': 'room-e' };
   return map[salaLetter] || 'room-a';
 }
 
@@ -457,6 +465,31 @@ function generateRecurringInstances(baseEvent, dateRange, exceptions = []) {
         }
       }
       current.setDate(current.getDate() + 7);
+    }
+  }
+
+  if (baseEvent.recurrence_type === 'biweekly') {
+    const baseDate = parseDate(baseEvent.date);
+    const endDate = baseEvent.recurrence_end_date && baseEvent.recurrence_end_date !== ''
+      ? parseDate(baseEvent.recurrence_end_date)
+      : new Date('2099-12-31');
+
+    let current = new Date(baseDate);
+
+    while (current <= end && current <= endDate) {
+      if (current >= start) {
+        const dateStr = dateToString(current);
+        const isException = exceptions.some(e => e.parent_id === baseEvent.id && e.exception_date === dateStr);
+        if (!isException) {
+          instances.push({
+            ...baseEvent,
+            id: `${baseEvent.id}-${dateStr}`,
+            date: dateStr,
+            recurrence_parent_id: baseEvent.id
+          });
+        }
+      }
+      current.setDate(current.getDate() + 14);
     }
   }
 
@@ -808,8 +841,10 @@ function showEventModal(event, dateStr) {
     document.getElementById('modal-details-group').style.display = 'none';
   }
 
-  // Mostrar botón de eliminar solo en modo admin
+  // Mostrar botones de editar y eliminar solo en modo admin
+  const btnEdit = document.getElementById('btn-edit-event');
   const btnDelete = document.getElementById('btn-delete-event');
+  btnEdit.style.display = state.mode === 'admin' ? 'block' : 'none';
   btnDelete.style.display = state.mode === 'admin' ? 'block' : 'none';
 
   document.getElementById('event-modal').classList.add('show');
@@ -818,6 +853,58 @@ function showEventModal(event, dateStr) {
 function closeEventModal() {
   document.getElementById('event-modal').classList.remove('show');
   state.currentEventInModal = null;
+}
+
+async function updateReservation(reservationId, data) {
+  try {
+    const { error } = await window.supabaseClient
+      .from('reservations')
+      .update(data)
+      .eq('id', reservationId);
+
+    if (error) {
+      console.error('Error updating reservation:', error);
+      return false;
+    }
+
+    cachedReservations = {};
+    return true;
+  } catch (e) {
+    console.error('Error:', e);
+    return false;
+  }
+}
+
+function editEventReservation() {
+  if (!state.currentEventInModal) return;
+
+  const ev = state.currentEventInModal;
+  // Para eventos recurrentes editamos la serie completa (el padre)
+  state.editingReservationId = ev.recurrence_parent_id || ev.id;
+
+  document.getElementById('booking-date').value = ev.date;
+  document.getElementById('booking-start').value = ev.startTime;
+  document.getElementById('booking-end').value = ev.endTime;
+  document.getElementById('booking-name').value = ev.name;
+  document.getElementById('booking-requester').value = ev.requester || '';
+  document.getElementById('booking-details').value = ev.notes || '';
+
+  document.querySelector('.booking-panel h3').textContent = 'Editar Reserva';
+  document.querySelector('#booking-form .btn-primary').textContent = 'Guardar cambios';
+  document.querySelector('#booking-form .btn-secondary').textContent = 'Cancelar';
+
+  closeEventModal();
+  document.querySelector('.booking-panel').scrollTop = 0;
+}
+
+function cancelEdit() {
+  state.editingReservationId = null;
+  document.querySelector('.booking-panel h3').textContent = 'Nueva Reserva';
+  document.querySelector('#booking-form .btn-primary').textContent = 'Reservar';
+  document.querySelector('#booking-form .btn-secondary').textContent = 'Limpiar';
+  document.getElementById('booking-form').reset();
+  document.getElementById('recurrence-fields').style.display = 'none';
+  document.getElementById('booking-date').value = dateToString(new Date());
 }
 
 async function deleteEventReservation() {
@@ -912,6 +999,33 @@ async function submitBooking(event) {
   const [y, m, d] = date.split('-').map(Number);
   const dateObj = new Date(y, m - 1, d);
 
+  if (state.editingReservationId) {
+    // MODO EDICIÓN
+    const updateData = {
+      date,
+      start_time: startTime,
+      end_time: endTime,
+      name,
+      requester: requester || 'N/A',
+      notes: details,
+      recurrence_type: recurrence === 'none' ? null : recurrence,
+      recurrence_end_date: recurrenceEnd === 'forever' ? null : recurrenceEndDate,
+      recurrence_day_of_week: recurrence === 'weekly' ? dateObj.getDay() : null,
+      recurrence_day_of_month: recurrence === 'monthly' ? dateObj.getDate() : null,
+    };
+
+    const success = await updateReservation(state.editingReservationId, updateData);
+    if (success) {
+      cancelEdit();
+      await renderCalendar();
+      alert('Reserva actualizada');
+    } else {
+      alert('Error al actualizar la reserva');
+    }
+    return;
+  }
+
+  // MODO CREACIÓN
   const success = await addReservation({
     id: generateId(),
     date,
@@ -931,6 +1045,7 @@ async function submitBooking(event) {
     event.target.reset();
     document.getElementById('booking-recurrence').value = 'none';
     document.getElementById('recurrence-fields').style.display = 'none';
+    document.getElementById('booking-date').value = dateToString(new Date());
     await renderCalendar();
     alert('Reserva guardada');
   } else {
