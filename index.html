@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -591,16 +592,21 @@ async function deleteReservation(reservationId, roomId) {
 }
 
 async function hasConflict(roomId, dateStr, startTime, endTime, excludeId = null) {
-  const reservations = await getReservations(roomId);
-  const startHour = parseInt(startTime.split(':')[0]);
-  const endHour = parseInt(endTime.split(':')[0]);
+  const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const newStart = toMin(startTime);
+  const newEnd = toMin(endTime);
 
-  return reservations.some(r => {
-    if (excludeId && r.id === excludeId) return false;
+  // Revisar también eventos recurrentes expandidos para esa fecha
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const dayDate = new Date(y, mo - 1, d);
+  const allReservations = await expandRecurringEvents(roomId, { start: dayDate, end: dayDate });
+
+  return allReservations.some(r => {
     if (r.date !== dateStr) return false;
-    const rStart = parseInt(r.start_time.split(':')[0]);
-    const rEnd = parseInt(r.end_time.split(':')[0]);
-    return !(endHour <= rStart || startHour >= rEnd);
+    if (excludeId && (r.id === excludeId || r.id.startsWith(excludeId + '-'))) return false;
+    const rStart = toMin(r.start_time);
+    const rEnd = toMin(r.end_time);
+    return !(newEnd <= rStart || newStart >= rEnd);
   });
 }
 
