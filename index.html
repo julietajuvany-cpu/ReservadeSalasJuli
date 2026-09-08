@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -605,8 +606,10 @@ async function hasConflict(roomId, dateStr, startTime, endTime, excludeId = null
 
 // RENDER WEEK VIEW
 async function renderWeek() {
-  const start = new Date(state.currentDate);
+  const start = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth(), state.currentDate.getDate());
   start.setDate(start.getDate() - start.getDay());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
 
   let html = '<div class="week-view" style="height: auto; min-height: 100%;">';
 
@@ -665,7 +668,8 @@ async function renderWeek() {
 
 async function renderDay() {
   const dateStr = dateToString(state.currentDate);
-  const dateRange = { start: state.currentDate, end: state.currentDate };
+  const dayMidnight = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth(), state.currentDate.getDate());
+  const dateRange = { start: dayMidnight, end: dayMidnight };
   const allReservations = await expandRecurringEvents(state.currentRoom, dateRange);
   const reservations = allReservations.filter(r => r.date === dateStr);
 
