@@ -870,14 +870,24 @@ function closeEventModal() {
 
 async function updateReservation(reservationId, data) {
   try {
-    const { error, count } = await window.supabaseClient
+    // Primero eliminamos la reserva original
+    const { error: deleteError } = await window.supabaseClient
       .from('reservations')
-      .update(data)
-      .eq('id', reservationId)
-      .select();
+      .delete()
+      .eq('id', reservationId);
 
-    if (error) {
-      console.error('Error updating reservation:', error);
+    if (deleteError) {
+      console.error('Error deleting for update:', deleteError);
+      return false;
+    }
+
+    // Luego insertamos con los datos nuevos (mismo ID para mantener excepciones)
+    const { error: insertError } = await window.supabaseClient
+      .from('reservations')
+      .insert([{ id: reservationId, room_id: state.currentRoom, ...data }]);
+
+    if (insertError) {
+      console.error('Error inserting for update:', insertError);
       return false;
     }
 
