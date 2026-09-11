@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -124,6 +125,7 @@
           <option value="room-c">Sala 4to Piso</option>
           <option value="room-d">Sala de reuniones - Grand Bourg</option>
           <option value="room-e">Sala de capacitaciones - Grand Bourg</option>
+          <option value="room-f">Sala de reuniones - Paso del Rey</option>
         </select>
       </div>
     </div>
@@ -275,6 +277,7 @@ const ROOMS = [
   { id: 'room-c', name: 'Sala 4to Piso', color: '#d42e2e' },
   { id: 'room-d', name: 'Sala de reuniones - Grand Bourg', color: '#f5a623' },
   { id: 'room-e', name: 'Sala de capacitaciones - Grand Bourg', color: '#9b59b6' },
+  { id: 'room-f', name: 'Sala de reuniones - Paso del Rey', color: '#16a085' },
 ];
 
 const STORAGE_KEY = 'rooms_reservations';
@@ -306,7 +309,7 @@ function getUrlParams() {
 }
 
 function getRoomId(salaLetter) {
-  const map = { 'A': 'room-a', 'B': 'room-b', 'C': 'room-c', 'D': 'room-d', 'E': 'room-e' };
+  const map = { 'A': 'room-a', 'B': 'room-b', 'C': 'room-c', 'D': 'room-d', 'E': 'room-e', 'F': 'room-f' };
   return map[salaLetter] || 'room-a';
 }
 
